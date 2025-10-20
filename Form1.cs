@@ -22,7 +22,27 @@ namespace FApp
             public string high { get; set; }
             public string low { get; set; }
             public double close { get; set; }
-            public string volume { get; set; }
+            public string volume
+            {
+                get { return _volume; }
+                set
+                {
+                    uint val = uint.Parse(value);
+                    if (val >= 1000 && val < 1000000)
+                    {
+                        _volume = (val / 1000).ToString() + "K";
+                    }
+                    else if (val >= 1000000)
+                    {
+                        _volume = (val / 1000000).ToString() + "M";
+                    }
+                    else
+                    {
+                        _volume = val.ToString();
+                    }
+                }
+            }
+            private string _volume;
             public string dividends { get; set; }
             public string split { get; set; }
             public info(string[] data)
@@ -39,7 +59,7 @@ namespace FApp
             public info()
             {
                 dt = DateTime.Now;
-                open = high = low = volume = dividends = split = "";
+                open = high = low = volume = dividends = split = "0";
                 close = 0;
             }
         }
@@ -53,7 +73,7 @@ namespace FApp
             process.StartInfo.FileName = "cmd.exe";
             process.StartInfo.UseShellExecute = false;
             process.StartInfo.CreateNoWindow = true;
-            
+
         }
 
         private void Form1_Load(object sender, EventArgs e)
@@ -62,12 +82,6 @@ namespace FApp
         }
         public void loadF()
         {
-            list.Clear();
-            if (File.Exists("list.txt"))
-            {
-                list = File.ReadAllLines("list.txt").ToList();
-            }
-
             DateTime now = DateTime.Now.AddMinutes(-15);
             dataGridView1.Rows.Clear();
             foreach (string item in list)
@@ -81,7 +95,7 @@ namespace FApp
                     try
                     {
                         var allLine = File.ReadAllLines(filePath);
-                        if(allLine.Count() < 2)
+                        if (allLine.Count() < 2)
                         {
                             break;
                         }
@@ -108,24 +122,48 @@ namespace FApp
                 }
                 double change = info_last.close - info_first.close;
                 string change_str = change > 0 ? "+" + change.ToString() : change.ToString();
-                dataGridView1.Rows.Add(item, $"{now.Hour.ToString().PadLeft(2, '0')}:{now.Minute.ToString().PadLeft(2, '0')}", info_last.close, change_str, "");
+                dataGridView1.Rows.Add(item, $"{now.Hour.ToString().PadLeft(2, '0')}:{now.Minute.ToString().PadLeft(2, '0')}", info_last.close, change_str, info_last.volume);
             }
             dataGridView1.ClearSelection();
         }
 
-        public void getF()
+        public async Task getF()
         {
+            var tasks = new List<Task>();
+
             foreach (string item in list)
             {
-                process.StartInfo.Arguments = "/c python f.py " + item;
-                process.Start();
+                tasks.Add(Task.Run(() =>
+                {
+                    using (var process = new Process())
+                    {
+                        process.StartInfo.FileName = "cmd.exe";
+                        process.StartInfo.Arguments = "/c python f.py " + item;
+                        process.StartInfo.UseShellExecute = false;
+                        process.StartInfo.CreateNoWindow = true;
+
+                        process.Start();
+                        process.WaitForExit();
+                    }
+                }));
             }
+
+            await Task.WhenAll(tasks); // đảm bảo tất cả process hoàn tất
         }
 
-        private void timer1_Tick(object sender, EventArgs e)
+        private async void timer1_Tick(object sender, EventArgs e)
         {
-            getF();
-            loadF();
+            list.Clear();
+            if (File.Exists("list.txt"))
+            {
+                list = File.ReadAllLines("list.txt").ToList();
+            }
+            if (list.Count > 0)
+            {
+                await getF();
+                loadF();
+            }
+            
         }
     }
 }
