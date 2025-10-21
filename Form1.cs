@@ -27,14 +27,14 @@ namespace FApp
                 get { return _volume; }
                 set
                 {
-                    uint val = uint.Parse(value);
+                    double val = uint.Parse(value);
                     if (val >= 1000 && val < 1000000)
                     {
-                        _volume = (val / 1000).ToString() + "K";
+                        _volume = Math.Round(val / 1000, 2).ToString() + "K";
                     }
                     else if (val >= 1000000)
                     {
-                        _volume = (val / 1000000).ToString() + "M";
+                        _volume = Math.Round(val / 1000000, 2).ToString() + "M";
                     }
                     else
                     {
@@ -163,7 +163,7 @@ namespace FApp
                 await getF();
                 loadF();
             }
-            
+
         }
     }
 }
